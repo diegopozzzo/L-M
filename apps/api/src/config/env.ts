@@ -33,6 +33,7 @@ const appOrigins = parseEnvList(process.env.APP_ORIGINS ?? process.env.APP_ORIGI
 export const env = {
   APP_NAME: process.env.APP_NAME ?? "legal-api",
   NODE_ENV: process.env.NODE_ENV ?? "development",
+  HOST: process.env.HOST ?? "0.0.0.0",
   PORT: Number(process.env.PORT ?? 4000),
   APP_ORIGIN: appOrigins[0] ?? "http://localhost:3000",
   APP_ORIGINS: appOrigins,
