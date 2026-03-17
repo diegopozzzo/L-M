@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "npm run prisma:generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "start:railway": "npm run prisma:migrate:deploy && node dist/server.js",
     "lint": "tsc --noEmit -p tsconfig.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",

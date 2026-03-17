@@ -10,6 +10,7 @@
     "dev:api": "npm run dev --workspace api",
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
     "start": "npm run start --workspace api",
+    "start:railway": "npm run start:railway --workspace api",
     "build": "npm run build --workspaces",
     "build:api": "npm run build --workspace api",
     "lint": "npm run lint --workspaces",

@@ -56,8 +56,10 @@ Tienes dos opciones:
 Con `railway.json`:
 
 - build: `npm run build`
-- pre-deploy: `npm run prisma:migrate:deploy`
-- start: `npm run start`
+- start: `npm run start:railway`
+
+`start:railway` ejecuta primero `prisma migrate deploy` y luego levanta la API.
+Esto evita problemas cuando la base de datos solo es accesible por red privada en runtime.
 
 ## Crear el administrador inicial
 
