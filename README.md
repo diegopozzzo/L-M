@@ -74,3 +74,4 @@ Importante:
 ## Despliegue
 
 La guia detallada esta en `docs/despliegue-produccion.md`.
+Si vas a desplegar la API en Railway, sigue `docs/despliegue-api-railway.md`.

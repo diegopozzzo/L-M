@@ -8,6 +8,11 @@ const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
+const shouldSeedTeamData =
+  (process.env.SEED_TEAM_DATA ??
+    (process.env.NODE_ENV === "production" ? "false" : "true"))
+    .trim()
+    .toLowerCase() === "true";
 const shouldSeedDemoData =
   (process.env.SEED_DEMO_DATA ?? "false").trim().toLowerCase() === "true";
 
@@ -1111,7 +1116,10 @@ async function main() {
   await seedPermisosYRoles();
   await seedCatalogos();
   await seedAdmin(passwordHash);
-  await seedEquipoDemo(passwordHash);
+
+  if (shouldSeedTeamData) {
+    await seedEquipoDemo(passwordHash);
+  }
 
   if (shouldSeedDemoData) {
     await seedClientesDemo();
