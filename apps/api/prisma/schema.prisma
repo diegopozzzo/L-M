@@ -1,0 +1,479 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+  BLOQUEADO
+  CAMBIO_PASSWORD_PENDIENTE
+}
+
+enum TipoPersona {
+  NATURAL
+  JURIDICA
+}
+
+enum EstadoCliente {
+  ACTIVO
+  INACTIVO
+  POTENCIAL
+  ARCHIVADO
+}
+
+enum OrigenRegistro {
+  WEB
+  REFERIDO
+  MANUAL
+  ALIANZA
+  OTRO
+}
+
+enum EstadoExpediente {
+  ABIERTO
+  EN_PROCESO
+  EN_ESPERA
+  CERRADO
+  ARCHIVADO
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum NivelConfidencialidad {
+  BAJO
+  MEDIO
+  ALTO
+  RESTRINGIDO
+}
+
+enum RolEnExpediente {
+  RESPONSABLE
+  COLABORADOR
+  LECTOR
+}
+
+enum TipoActuacion {
+  AUDIENCIA
+  ESCRITO
+  REUNION
+  LLAMADA
+  NOTIFICACION
+  TAREA
+  OTRO
+}
+
+enum TipoAviso {
+  VENCIMIENTO
+  AUDIENCIA
+  RECORDATORIO
+  RENOVACION
+  TAREA
+  OTRO
+}
+
+enum EstadoAviso {
+  PENDIENTE
+  COMPLETADO
+  VENCIDO
+  CANCELADO
+}
+
+enum EstadoRevisionDocumento {
+  POR_REVISAR
+  REVISADO
+  OBSERVADO
+}
+
+enum TipoNotaExpediente {
+  RESUMEN
+  CONCLUSION
+  AVANCE
+  PENDIENTE
+  CONTEXTO
+  OTRO
+}
+
+enum VisibilidadNota {
+  INTERNA
+  PRIVADA
+}
+
+enum EstadoLead {
+  NUEVO
+  EN_REVISION
+  CONTACTADO
+  CONVERTIDO
+  DESCARTADO
+}
+
+// Seguridad y acceso.
+model Rol {
+  id          String       @id @default(uuid()) @db.Uuid
+  nombre      String       @unique @db.VarChar(60)
+  descripcion String?      @db.VarChar(255)
+  activo      Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+  usuarios    Usuario[]
+  permisos    RolPermiso[]
+
+  @@index([activo])
+  @@map("roles")
+}
+
+model Permiso {
+  id          String       @id @default(uuid()) @db.Uuid
+  clave       String       @unique @db.VarChar(120)
+  modulo      String       @db.VarChar(80)
+  descripcion String?      @db.VarChar(255)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+  roles       RolPermiso[]
+
+  @@index([modulo])
+  @@map("permisos")
+}
+
+model RolPermiso {
+  id        String   @id @default(uuid()) @db.Uuid
+  rolId     String   @db.Uuid
+  permisoId String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  rol       Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso   Permiso  @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@unique([rolId, permisoId])
+  @@index([permisoId])
+  @@map("roles_permisos")
+}
+
+model Usuario {
+  id                        String               @id @default(uuid()) @db.Uuid
+  rolId                     String               @db.Uuid
+  nombres                   String               @db.VarChar(120)
+  apellidos                 String               @db.VarChar(120)
+  email                     String               @unique @db.VarChar(255)
+  passwordHash              String               @db.VarChar(255)
+  telefono                  String?              @db.VarChar(30)
+  estado                    EstadoUsuario        @default(ACTIVO)
+  ultimoAcceso              DateTime?            @db.Timestamptz(6)
+  deletedAt                 DateTime?            @db.Timestamptz(6)
+  createdAt                 DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime             @updatedAt @db.Timestamptz(6)
+  rol                       Rol                  @relation(fields: [rolId], references: [id])
+  refreshTokens             RefreshToken[]
+  expedientesResponsables   Expediente[]
+  participacionesExpediente ExpedienteUsuario[]
+  actuaciones               Actuacion[]
+  documentosSubidos         Documento[]
+  avisosAsignados           Aviso[]
+  notasExpediente           NotaExpediente[]
+  formulariosAsignados      FormularioContacto[]
+  clientesCreados           Cliente[]            @relation("ClienteCreadoPor")
+  leadsCreados              FormularioContacto[] @relation("LeadCreadoPor")
+  eventosAuditoria          AuditoriaEvento[]
+
+  @@index([rolId, estado])
+  @@index([deletedAt])
+  @@map("usuarios")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  usuarioId  String    @db.Uuid
+  jti        String    @unique @db.VarChar(120)
+  tokenHash  String?   @db.VarChar(255)
+  expiraEn   DateTime  @db.Timestamptz(6)
+  revocadoEn DateTime? @db.Timestamptz(6)
+  ip         String?   @db.VarChar(64)
+  userAgent  String?   @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, revocadoEn])
+  @@map("refresh_tokens")
+}
+
+// Nucleo juridico.
+model Cliente {
+  id                  String               @id @default(uuid()) @db.Uuid
+  creadoPorId         String?              @db.Uuid
+  tipoPersona         TipoPersona
+  nombresORazonSocial String               @db.VarChar(180)
+  tipoDocumento       String?              @db.VarChar(40)
+  numeroDocumento     String?              @unique @db.VarChar(40)
+  email               String?              @db.VarChar(255)
+  telefono            String?              @db.VarChar(30)
+  direccion           String?              @db.VarChar(255)
+  origen              OrigenRegistro       @default(MANUAL)
+  estado              EstadoCliente        @default(ACTIVO)
+  esCompartido        Boolean              @default(false)
+  observaciones       String?              @db.Text
+  deletedAt           DateTime?            @db.Timestamptz(6)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  creadoPor           Usuario?             @relation("ClienteCreadoPor", fields: [creadoPorId], references: [id], onDelete: SetNull)
+  contactos           ContactoCliente[]
+  expedientes         Expediente[]
+  formulariosContacto FormularioContacto[]
+
+  @@index([estado, origen])
+  @@index([creadoPorId, esCompartido])
+  @@index([deletedAt])
+  @@map("clientes")
+}
+
+model ContactoCliente {
+  id          String   @id @default(uuid()) @db.Uuid
+  clienteId   String   @db.Uuid
+  nombre      String   @db.VarChar(140)
+  cargo       String?  @db.VarChar(120)
+  email       String?  @db.VarChar(255)
+  telefono    String?  @db.VarChar(30)
+  esPrincipal Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId, esPrincipal])
+  @@map("contactos_cliente")
+}
+
+model AreaPractica {
+  id                  String               @id @default(uuid()) @db.Uuid
+  nombre              String               @unique @db.VarChar(120)
+  slug                String               @unique @db.VarChar(140)
+  descripcion         String?              @db.Text
+  activa              Boolean              @default(true)
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  expedientes         Expediente[]
+  formulariosContacto FormularioContacto[]
+
+  @@index([activa])
+  @@map("areas_practica")
+}
+
+model Expediente {
+  id                      String                @id @default(uuid()) @db.Uuid
+  codigoInterno           String                @unique @db.VarChar(60)
+  clienteId               String                @db.Uuid
+  areaPracticaId          String                @db.Uuid
+  responsableId           String                @db.Uuid
+  titulo                  String                @db.VarChar(180)
+  descripcion             String?               @db.Text
+  contraparte             String?               @db.VarChar(180)
+  organoJudicial          String?               @db.VarChar(180)
+  numeroExpedienteExterno String?               @db.VarChar(80)
+  estado                  EstadoExpediente      @default(ABIERTO)
+  prioridad               Prioridad             @default(MEDIA)
+  nivelConfidencialidad   NivelConfidencialidad @default(ALTO)
+  resumenEjecutivo        String?               @db.Text
+  siguientePaso           String?               @db.Text
+  fechaApertura           DateTime              @default(now()) @db.Timestamptz(6)
+  fechaCierre             DateTime?             @db.Timestamptz(6)
+  deletedAt               DateTime?             @db.Timestamptz(6)
+  createdAt               DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime              @updatedAt @db.Timestamptz(6)
+  cliente                 Cliente               @relation(fields: [clienteId], references: [id])
+  areaPractica            AreaPractica          @relation(fields: [areaPracticaId], references: [id])
+  responsable             Usuario               @relation(fields: [responsableId], references: [id])
+  usuarios                ExpedienteUsuario[]
+  actuaciones             Actuacion[]
+  documentos              Documento[]
+  avisos                  Aviso[]
+  notas                   NotaExpediente[]
+
+  @@index([clienteId, estado])
+  @@index([areaPracticaId, estado])
+  @@index([responsableId])
+  @@index([deletedAt])
+  @@map("expedientes")
+}
+
+model ExpedienteUsuario {
+  id              String          @id @default(uuid()) @db.Uuid
+  expedienteId    String          @db.Uuid
+  usuarioId       String          @db.Uuid
+  rolEnExpediente RolEnExpediente @default(COLABORADOR)
+  recibeAlertas   Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(6)
+  expediente      Expediente      @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  usuario         Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([expedienteId, usuarioId])
+  @@index([usuarioId])
+  @@map("expediente_usuarios")
+}
+
+model Actuacion {
+  id            String        @id @default(uuid()) @db.Uuid
+  expedienteId  String        @db.Uuid
+  usuarioId     String        @db.Uuid
+  tipo          TipoActuacion @default(OTRO)
+  fechaEvento   DateTime      @db.Timestamptz(6)
+  descripcion   String        @db.Text
+  resultado     String?       @db.Text
+  proximaAccion String?       @db.Text
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
+  expediente    Expediente    @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
+  avisos        Aviso[]
+
+  @@index([expedienteId, fechaEvento])
+  @@index([usuarioId])
+  @@map("actuaciones")
+}
+
+model TipoDocumento {
+  id          String      @id @default(uuid()) @db.Uuid
+  nombre      String      @unique @db.VarChar(120)
+  descripcion String?     @db.Text
+  activo      Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+  documentos  Documento[]
+
+  @@index([activo])
+  @@map("tipos_documento")
+}
+
+model Documento {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  expedienteId       String                  @db.Uuid
+  tipoDocumentoId    String                  @db.Uuid
+  subidoPorId        String                  @db.Uuid
+  nombreOriginal     String                  @db.VarChar(255)
+  nombreAlmacenado   String                  @db.VarChar(255)
+  mimeType           String                  @db.VarChar(120)
+  tamanoBytes        BigInt?                 @db.BigInt
+  hashSha256         String?                 @db.Char(64)
+  archivo            Bytes?
+  estadoRevision     EstadoRevisionDocumento @default(POR_REVISAR)
+  descripcionInterna String?                 @db.Text
+  s3Key              String?                 @unique @db.VarChar(255)
+  bucket             String?                 @db.VarChar(120)
+  version            Int                     @default(1)
+  fechaDocumento     DateTime?               @db.Timestamptz(6)
+  esConfidencial     Boolean                 @default(true)
+  deletedAt          DateTime?               @db.Timestamptz(6)
+  createdAt          DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                @updatedAt @db.Timestamptz(6)
+  expediente         Expediente              @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  tipoDocumento      TipoDocumento           @relation(fields: [tipoDocumentoId], references: [id])
+  subidoPor          Usuario                 @relation(fields: [subidoPorId], references: [id])
+
+  @@index([expedienteId])
+  @@index([tipoDocumentoId])
+  @@index([subidoPorId])
+  @@index([estadoRevision])
+  @@index([deletedAt])
+  @@map("documentos")
+}
+
+model Aviso {
+  id                String      @id @default(uuid()) @db.Uuid
+  expedienteId      String      @db.Uuid
+  asignadoAId       String      @db.Uuid
+  actuacionId       String?     @db.Uuid
+  titulo            String      @db.VarChar(180)
+  descripcion       String?     @db.Text
+  tipoAviso         TipoAviso   @default(RECORDATORIO)
+  fechaRecordatorio DateTime?   @db.Timestamptz(6)
+  fechaVencimiento  DateTime    @db.Timestamptz(6)
+  prioridad         Prioridad   @default(MEDIA)
+  estado            EstadoAviso @default(PENDIENTE)
+  canal             String?     @db.VarChar(40)
+  completadoEn      DateTime?   @db.Timestamptz(6)
+  createdAt         DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(6)
+  expediente        Expediente  @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  asignadoA         Usuario     @relation(fields: [asignadoAId], references: [id])
+  actuacion         Actuacion?  @relation(fields: [actuacionId], references: [id], onDelete: SetNull)
+
+  @@index([fechaVencimiento, estado])
+  @@index([asignadoAId, estado])
+  @@index([expedienteId])
+  @@map("avisos")
+}
+
+model NotaExpediente {
+  id           String             @id @default(uuid()) @db.Uuid
+  expedienteId String             @db.Uuid
+  autorId      String             @db.Uuid
+  titulo       String?            @db.VarChar(180)
+  tipo         TipoNotaExpediente @default(OTRO)
+  contenido    String             @db.Text
+  destacado    Boolean            @default(false)
+  visibilidad  VisibilidadNota    @default(PRIVADA)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @db.Timestamptz(6)
+  expediente   Expediente         @relation(fields: [expedienteId], references: [id], onDelete: Cascade)
+  autor        Usuario            @relation(fields: [autorId], references: [id])
+
+  @@index([expedienteId, createdAt])
+  @@index([expedienteId, tipo])
+  @@index([autorId])
+  @@map("notas_expediente")
+}
+
+// Captacion web.
+model FormularioContacto {
+  id             String         @id @default(uuid()) @db.Uuid
+  creadoPorId    String?        @db.Uuid
+  areaPracticaId String?        @db.Uuid
+  asignadoAId    String?        @db.Uuid
+  clienteId      String?        @db.Uuid
+  nombre         String         @db.VarChar(140)
+  email          String         @db.VarChar(255)
+  telefono       String?        @db.VarChar(30)
+  empresa        String?        @db.VarChar(140)
+  mensaje        String         @db.Text
+  origenUrl      String?        @db.VarChar(255)
+  origen         OrigenRegistro @default(WEB)
+  estado         EstadoLead     @default(NUEVO)
+  esCompartido   Boolean        @default(false)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(6)
+  creadoPor      Usuario?       @relation("LeadCreadoPor", fields: [creadoPorId], references: [id], onDelete: SetNull)
+  areaPractica   AreaPractica?  @relation(fields: [areaPracticaId], references: [id], onDelete: SetNull)
+  asignadoA      Usuario?       @relation(fields: [asignadoAId], references: [id], onDelete: SetNull)
+  cliente        Cliente?       @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  @@index([estado, createdAt])
+  @@index([creadoPorId, esCompartido])
+  @@index([areaPracticaId])
+  @@index([clienteId])
+  @@map("formularios_contacto")
+}
+
+// Trazabilidad.
+model AuditoriaEvento {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String?  @db.Uuid
+  entidad   String   @db.VarChar(120)
+  entidadId String?  @db.VarChar(60)
+  accion    String   @db.VarChar(120)
+  detalle   Json?
+  ip        String?  @db.VarChar(64)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([entidad, entidadId])
+  @@index([createdAt])
+  @@index([usuarioId])
+  @@map("auditoria_eventos")
+}
