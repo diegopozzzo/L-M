@@ -43,6 +43,15 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? "15m",
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
   BCRYPT_SALT_ROUNDS: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+  DATABASE_SSL:
+    (process.env.DATABASE_SSL ??
+      (process.env.NODE_ENV === "production" ? "true" : "false"))
+      .trim()
+      .toLowerCase() === "true",
+  DATABASE_SSL_REJECT_UNAUTHORIZED:
+    (process.env.DATABASE_SSL_REJECT_UNAUTHORIZED ?? "false")
+      .trim()
+      .toLowerCase() === "true",
   AWS_REGION: process.env.AWS_REGION ?? "",
   AWS_S3_BUCKET: process.env.AWS_S3_BUCKET ?? "",
 };

@@ -8,9 +8,19 @@ const globalForPrisma = globalThis as {
   prisma?: PrismaClient;
 };
 
-const adapter = new PrismaPg({
+type PrismaPgConfig = ConstructorParameters<typeof PrismaPg>[0];
+
+const poolConfig: PrismaPgConfig = {
   connectionString,
-});
+};
+
+if (env.DATABASE_SSL) {
+  poolConfig.ssl = {
+    rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED,
+  };
+}
+
+const adapter = new PrismaPg(poolConfig);
 
 export const prisma =
   globalForPrisma.prisma ??
