@@ -9,8 +9,12 @@
     "dev:web": "npm run dev --workspace web",
     "dev:api": "npm run dev --workspace api",
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "start": "npm run start --workspace api",
     "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces"
+    "build:api": "npm run build --workspace api",
+    "lint": "npm run lint --workspaces",
+    "prisma:migrate:deploy": "npm run prisma:migrate:deploy --workspace api",
+    "seed": "npm run seed --workspace api"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
