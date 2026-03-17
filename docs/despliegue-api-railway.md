@@ -29,7 +29,6 @@ Configura estas variables en Railway:
 ```env
 APP_NAME=legal-api
 NODE_ENV=production
-PORT=4000
 APP_ORIGINS=https://l-m-web-five.vercel.app
 DATABASE_URL=postgresql://usuario:password@host:5432/base
 JWT_SECRET=un_secreto_muy_largo
@@ -42,6 +41,8 @@ SEED_ADMIN_PASSWORD=Admin123!
 SEED_TEAM_DATA=false
 SEED_DEMO_DATA=false
 ```
+
+No configures `PORT` manualmente en Railway. La plataforma lo inyecta automaticamente.
 
 ## Base de datos
 
